@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f4f5f0">
+  <title>Geometric VIO — Interactive experiment</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="workspace">
+    <header class="masthead">
+      <div class="identity"><span class="brand-mark" aria-hidden="true">⊕</span><span>GEOMETRIC VIO<span class="identity-sub">RESEARCH EXPLORER</span></span></div>
+      <span class="model-tag">SE<sub>3</sub>(3) <span>·</span> Direct optical flow</span>
+    </header>
+    <section class="introduction">
+      <div><p class="eyebrow">NUMERICAL VALIDATION</p><h1>Optical-flow VIO observer</h1></div>
+      <p class="intro-copy">Explore recorded simulation results. Select a trajectory, landmark count, and noise level to compare motion estimates and recovery from initial errors.</p>
+    </section>
+    <nav class="study-tabs" aria-label="Choose an experiment">
+      <button type="button" data-study="odometry" aria-pressed="true"><strong>Odometry</strong><span>Start at the true state</span></button>
+      <button type="button" data-study="recovery" aria-pressed="false"><strong>Initial-error recovery</strong><span>Randomized initial estimates</span></button>
+      <button type="button" data-study="ideal" aria-pressed="false"><strong>Excitation examples</strong><span>Noise-free geometry</span></button>
+    </nav>
+    <p class="study-description" id="study-description">Position, attitude, velocity, and gravity start at their true values. Noise then determines the subsequent estimation error.</p>
+    <section class="experiment-bar" aria-label="Experiment controls">
+      <label class="field"><span>TRAJECTORY</span><select id="case-select" disabled><option>Loading experiments…</option></select></label>
+      <label class="field count-field"><span>LANDMARKS</span><select id="count-select" disabled><option>—</option></select></label>
+      <label class="field noise-field" id="noise-field"><span>MEASUREMENT NOISE</span><select id="noise-select" disabled><option value="nominal">Nominal</option></select></label>
+      <label class="field trial-field" id="trial-field"><span>DISPLAYED TRIAL</span><select id="trial-select" disabled><option value="0">Trial 1</option></select></label>
+      <div class="export-controls"><button id="json-download" class="quiet-button" disabled title="Download the selected playback dataset">JSON <span aria-hidden="true">↗</span></button><button id="csv-download" class="quiet-button" disabled title="Download the displayed trial and ensemble statistics">CSV <span aria-hidden="true">↗</span></button></div>
+    </section>
+    <div class="experiment-description"><span class="status-dot"></span><p id="case-description">Loading the recorded simulation runs.</p><span id="trial-summary"></span></div>
+    <div id="error-banner" class="error-banner" role="alert" hidden></div>
+    <p class="metric-context" id="metric-context">Errors for the displayed trial</p>
+    <section class="metric-strip" aria-label="Current error values">
+      <div class="metric" id="position-metric"><span>POSITION ERROR</span><div><strong id="position-value">—</strong><small>m</small></div><p>Common initial frame · no alignment</p></div>
+      <div class="metric"><span>VELOCITY ERROR</span><div><strong id="velocity-value">—</strong><small>m/s</small></div><p>Body-frame norm</p></div>
+      <div class="metric"><span>GRAVITY ERROR</span><div><strong id="gravity-value">—</strong><small>m/s²</small></div><p>Body-frame norm</p></div>
+      <div class="metric"><span>TILT ERROR</span><div><strong id="tilt-value">—</strong><small>deg</small></div><p>Gravity-direction mismatch</p></div>
+      <div class="metric pe-metric" id="pe-metric" hidden><span>WINDOWED EXCITATION</span><div><strong id="pe-value">—</strong><small>λ<sub>min</sub> · s⁻²</small></div><p id="pe-window-note">Waiting for one full window</p></div>
+    </section>
+    <section class="explorer-grid">
+      <article class="panel scene-panel">
+        <header class="panel-header"><div><p class="eyebrow">01 / SPATIAL VIEW</p><h2>Trajectory &amp; orientation</h2></div><button id="reset-view" class="icon-button" title="Reset the 3D view" aria-label="Reset the 3D view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 10a8 8 0 1 1 1.6 7M4 4v6h6"/></svg></button></header>
+        <div class="scene-controls"><label class="toggle"><input type="checkbox" id="estimate-toggle" checked><span class="toggle-track"></span>Estimate</label><label class="toggle"><input type="checkbox" id="rays-toggle"><span class="toggle-track"></span>Bearing rays</label><label class="toggle"><input type="checkbox" id="landmarks-toggle" checked><span class="toggle-track"></span>Landmarks</label><span class="orbit-hint">Drag to orbit · scroll to zoom</span></div>
+        <div class="scene-wrap" id="scene-wrap">
+          <canvas id="scene" aria-label="Interactive 3D plot of true and estimated trajectory, vehicle orientation, and landmarks"></canvas>
+          <div class="scene-topline"><span id="frame-label">INERTIAL FRAME / METERS</span><span id="landmark-label">— LANDMARKS</span></div>
+          <div id="loading-state" class="loading-state"><span class="spinner"></span><span>Loading experiment</span></div>
+          <div class="scene-legend"><span><i class="legend-line true-line"></i>True vehicle</span><span id="estimate-legend"><i class="legend-line estimate-line"></i>Estimate</span><span id="landmark-legend"><i class="legend-point"></i>Landmark</span></div>
+          <div class="scene-axis-key"><b class="axis-x">x</b><b class="axis-y">y</b><b class="axis-z">z</b></div>
+        </div>
+        <div class="playback">
+          <button id="play-button" class="play-button" disabled aria-label="Play simulation"><span id="play-icon" aria-hidden="true">▶</span><span id="play-label">Play</span></button>
+          <div class="timeline"><div class="time-labels"><strong id="current-time">0.00 s</strong><span id="duration-label">40.00 s</span></div><input type="range" id="timeline" min="0" max="800" value="0" step="1" disabled aria-label="Simulation time"></div>
+          <label class="speed-field"><span>SPEED</span><select id="speed-select" aria-label="Playback speed"><option value="0.25">¼×</option><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+        </div>
+        <p class="scene-note" id="scene-note">The true and estimated trajectories share the initial frame. The estimate is shown without alignment; subsequent position and yaw drift remain visible.</p>
+      </article>
+      <article class="panel diagnostics-panel">
+        <header class="panel-header"><div><p class="eyebrow">02 / ERROR HISTORIES</p><h2 id="diagnostics-heading">Noise &amp; drift</h2></div><label class="scale-control">Scale<select id="scale-select" aria-label="Error plot scale"><option value="linear">Linear</option><option value="log">Logarithmic</option></select></label></header>
+        <div class="band-legend" id="band-legend"><span><i class="legend-line true-line"></i>Median</span><span><i class="legend-band"></i>5th–95th percentiles</span><span><i class="legend-line estimate-line"></i><span id="trial-legend">Trial 1</span></span></div>
+        <div class="plot-row" id="position-row"><div class="plot-title"><h3>Position error</h3><span>‖p − p̂‖ · m</span></div><canvas id="position-plot" class="plot" aria-label="Unaligned position error and empirical percentile band versus time"></canvas></div>
+        <div class="plot-row"><div class="plot-title"><h3>Velocity error</h3><span>‖v<sub>B</sub> − v̂<sub>B</sub>‖ · m/s</span></div><canvas id="velocity-plot" class="plot" aria-label="Velocity error norm and empirical percentile band versus time"></canvas></div>
+        <div class="plot-row"><div class="plot-title"><h3>Gravity error</h3><span>‖g<sub>B</sub> − ĝ<sub>B</sub>‖ · m/s²</span></div><canvas id="gravity-plot" class="plot" aria-label="Gravity error norm and empirical percentile band versus time"></canvas></div>
+        <div class="plot-row"><div class="plot-title"><h3>Reduced-attitude error</h3><span>Gravity direction · degrees</span></div><canvas id="tilt-plot" class="plot" aria-label="Tilt error in degrees and empirical percentile band versus time"></canvas></div>
+        <div class="plot-row excitation-row" id="pe-row"><div class="plot-title"><h3>Physical excitation</h3><span>True geometry · λ<sub>min</sub> · s⁻²</span></div><canvas id="pe-plot" class="plot" aria-label="Minimum eigenvalue of the excitation matrix from true geometry, not noisy measurements, versus time"></canvas></div>
+        <p class="plot-footnote chart-note" id="chart-note">Bands show pointwise variation across trials, not a confidence region for an individual trajectory. Click any plot to move the time cursor.</p>
+        <p class="run-summary" id="run-summary"></p>
+      </article>
+    </section>
+    <details class="experiment-details motion-definitions"><summary>Motion and scene definitions</summary><div id="motion-settings"></div></details>
+    <details class="experiment-details"><summary>Measurement, initialization, and gain settings</summary><div id="experiment-settings"></div></details>
+    <section class="method-section" aria-label="About the experiment">
+      <div class="method-heading"><p class="eyebrow">READING THE EXPERIMENT</p><h2>Model and measurements</h2><p>Prescribed rigid-body motion is observed through spherical bearings and a fixed landmark set. The quadcopter marks the body pose; no motor or flight-controller model is simulated. All studies retain the observer’s rotational correction in the position equation.</p></div>
+      <div class="method-card"><span class="step-number">01</span><h3>Individual flow constraints</h3><p>The ideal bearing–flow relation gives one homogeneous constraint on velocity, without feature depth or velocity-direction reconstruction. Noise perturbs the constraint itself, so its residual need not vanish at the true velocity.</p><div class="formula">Ideal model: H<sub>i</sub> = s<sub>i</sub><sup>×</sup> π<sub>bᵢ</sub> <span>·</span> H<sub>i</sub>v<sub>B</sub> = 0</div></div>
+      <div class="method-card"><span class="step-number">02</span><h3>Gravity guides attitude</h3><p>The velocity–gravity subsystem evolves independently of the attitude correction. Estimated gravity then corrects tilt. The ideal-model guarantees concern body-frame velocity, gravity, and reduced attitude.</p><div class="formula">Visual residual → Riccati correction → tilt</div></div>
+    </section>
+    <nav class="reproducibility" aria-label="Download figures and numerical checks"><span>FIGURES &amp; DATA</span><a href="downloads/experiment-figures.zip" download="experiment-figures.zip">Figures · EPS / PDF / SVG</a><a href="data/experiments/validation.json" download="experiment-validation.json">Experiment checks</a><a href="data/validation-summary.json" download="validation-summary.json">Ideal-model checks</a></nav>
+    <footer class="footer"><span><span class="footer-dot"></span>Recorded results · controls select existing runs</span><span id="sampling-note">40 s per run · ideal omnidirectional bearings</span></footer>
+    <p class="preparation-note">Playback uses precomputed solutions; changing a control does not run a new simulation. The noise studies measure sensitivity to a specified synthetic perturbation model.</p>
+    <p class="sr-only" id="live-status" aria-live="polite"></p>
+  </main>
+</body>
+</html>
